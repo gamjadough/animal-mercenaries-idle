@@ -519,31 +519,43 @@
       const advance=strikes.has(i)&&id==="fox"?Math.sin(progress*Math.PI)*12:0;
       drawMember(id,teamX[i]+advance-recoil,teamY[i],Math.floor(clock/200+i)%2,strikes.has(i));
     }
-    if(view.data.foe>0||flash) {
-      const hit=strikes.size?Math.sin(progress*Math.PI)*4:0;
-      const y=ground-(view.data.warning?5:0);
-      shadow(target,ground,hunt.sprite===2?50:32);
+    const group=enemyGroup(round.index);
+    const enemySpot=i=>({x:target+[-7,12,17][i],y:ground+[0,-25,-5][i]});
+    for(let i=2;i>=0;i--) {
+      const enemy=group[i], spot=enemySpot(i);
+      const attacked=flash&&view.data.events.some(e=>(e.kind==="attack"||e.kind==="special")&&e.enemy===i);
+      if(view.data.enemies[i]<=0&&!attacked) continue;
+      const hit=attacked?Math.sin(progress*Math.PI)*4:0;
+      const lunging=flash&&view.data.events.some(e=>e.kind==="hit"&&e.enemy===i);
+      const advance=lunging?Math.sin(progress*Math.PI)*7:0;
+      const y=spot.y-(enemy.boss&&view.data.warning?5:0);
+      shadow(spot.x,spot.y,enemy.boss?45:24);
       ctx.save();
-      ctx.translate(target+hit,y);
-      ctx.scale(.82,.82);
-      creature(hunt.sprite,0,0,Math.floor(clock/190)%2);
+      ctx.translate(spot.x+hit-advance,y);
+      const scale=enemy.boss?.74:.57;
+      ctx.scale(scale,scale);
+      creature(enemy.sprite,0,0,Math.floor(clock/190+i)%2);
       ctx.restore();
+      const top=spot.y-(enemy.boss?46:enemy.sprite===0?28:21);
+      block(ctx,spot.x-11,top,23,3,"#182520");
+      block(ctx,spot.x-10,top+1,21*Math.max(0,view.data.enemies[i])/enemy.max,1,enemy.boss?"#f0a574":"#d9b78a");
     }
     if(!flash) return;
     for(const event of view.data.events) {
       if(event.kind==="attack"||event.kind==="special") {
         const id=round.lineup[event.from];
+        const spot=enemySpot(event.enemy??0);
         const special=event.kind==="special";
         const offset=special?0:6;
         if(id==="fox") {
-          impact(teamX[event.from],target,ground+offset,"sword",progress,special,false,false);
-          if(special&&progress>.16) impact(teamX[event.from]+10,target,ground-9,"sword",(progress-.16)/.84,true,false,false);
+          impact(teamX[event.from],spot.x,spot.y+offset,"sword",progress,special,false,false);
+          if(special&&progress>.16) impact(teamX[event.from]+10,spot.x,spot.y-9,"sword",(progress-.16)/.84,true,false,false);
         }
         else if(id==="owl") {
-          impact(teamX[event.from],target,ground+offset,"bow",progress,special,false,false);
-          if(special) particles(target,ground-25,progress,"#a7c6ff",14);
+          impact(teamX[event.from],spot.x,spot.y+offset,"bow",progress,special,false,false);
+          if(special) particles(spot.x,spot.y-25,progress,"#a7c6ff",14);
         }
-        else particles(target,ground-24,progress,"#ffe1a0",5);
+        else particles(spot.x,spot.y-24,progress,"#ffe1a0",5);
       } else if(event.kind==="guard") {
         const x=teamX[event.to],y=teamY[event.to];
         polygon(ctx,[[x+3,y-26],[x+14,y-29],[x+19,y-24],[x+16,y-15],[x+9,y-12],[x+4,y-17]],"#f0cf86");

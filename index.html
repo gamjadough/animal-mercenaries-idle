@@ -11,7 +11,7 @@
 </head>
 <body>
 <main class="game">
-  <header><div class="brand"><span class="crest" aria-hidden="true"><svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 13l4-8 2 4 2-6 4 10z M8 9v4"/></svg></span><div><small>밤나무 숲 탐험 일지</small><h1>동물 용병단 키우기</h1></div></div><div id="stock" class="stock"></div></header>
+  <header aria-label="재화와 인벤토리"><div id="stock" class="stock"></div></header>
   <div id="notice" role="status"></div>
   <section class="scene" aria-label="자동 사냥">
     <canvas id="world" width="280" height="220"></canvas>
@@ -31,7 +31,7 @@
     </aside>
     <div id="combat-hud">
       <div id="fight-alert"></div>
-      <div id="skills" class="meters" aria-label="동료 특수 기술"></div>
+      <div id="skills" class="meters" aria-label="자동 특수 기술 재사용 시간"></div>
       <div id="health-bars" class="meters"></div>
       <button id="depart" class="button primary" data-act="depart" hidden>출격</button>
     </div>

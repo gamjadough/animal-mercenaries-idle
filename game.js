@@ -5,7 +5,6 @@ const SAVE_KEY = "acorn-expedition-team-v1";
 const TICK = 200;
 const MAX_OFFLINE = 3 * 24 * 60 * 60 * 1000;
 const LEAD = 700;
-const AUTO_GRACE = 420;
 const allies = {
   raccoon: {name:"단단이", animal:"너구리", role:"방어", hp:115, power:7, outfit:"blue", skill:"굳건한 수비"},
   fox: {name:"솔이", animal:"여우", role:"공격", hp:69, power:15, outfit:"red", skill:"연속 베기"},
@@ -83,19 +82,27 @@ function plannedHunt() {
 
 const turnStep=index=>(hunts[index].seconds*1000-LEAD)/beats[index];
 const turnAt=(index,turn)=>LEAD+(turn-1)*turnStep(index);
-function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.cooldowns, orders={}, ranks=lineup.map(id=>id?level(id):0)) {
+function enemyGroup(index) {
+  const hunt=hunts[index], boss=index===2;
+  const health=boss?[Math.round(hunt.hp*.72),Math.round(hunt.hp*.14)]:[Math.floor(hunt.hp/3),Math.floor(hunt.hp/3)];
+  health.push(hunt.hp-health[0]-health[1]);
+  return health.map((max,i)=>({max,hp:max,sprite:boss&&i>0?0:hunt.sprite,boss:boss&&i===0}));
+}
+function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.cooldowns, ranks=lineup.map(id=>id?level(id):0)) {
   const hunt=hunts[index];
   const team=lineup.map((id,i)=>id ? {id,max:allies[id].hp+(ranks[i]-1)*4,hp:0,damage:0,received:0,healed:0,ready:ready[id]||0,guardUntil:0} : null);
   for(const member of team) if(member) member.hp=wounds[member.id]===-1?0:Math.max(1,member.max-(wounds[member.id]||0));
   const snapshots=[];
+  const enemies=enemyGroup(index);
   let foe=hunt.hp, potions=1+herbsLevel;
   const living=(indices)=>indices.filter(i=>team[i]?.hp>0);
   const snapshot=(text,events=[],warning=null)=>snapshots.push({
-    hp:team.map(m=>m?.hp||0), max:team.map(m=>m?.max||0), ready:team.map(m=>m?.ready||0), foe, text, events, warning, potions
+    hp:team.map(m=>m?.hp||0), max:team.map(m=>m?.max||0), ready:team.map(m=>m?.ready||0),
+    enemies:enemies.map(enemy=>enemy.hp), foe, text, events, warning, potions
   });
   const lowest=(indices)=>indices.reduce((a,b)=>team[a].hp<=team[b].hp?a:b);
   function owlMove(turn) {
-    if(index!==2||![3,5,7,9].includes(turn)) return null;
+    if(index!==2||enemies[0].hp<=0||![3,5,7,9].includes(turn)) return null;
     const back=living([2,3]), front=living([0,1]), row=back.length?back:front;
     if(!row.length) return null;
     const dive=turn===3||turn===7;
@@ -109,35 +116,39 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
     if(!live.length) break;
     const events=[];
     let text="동료들이 함께 공격해요.";
-    const fronts=living([0,1]), backs=living([2,3]);
     const attack=pending;
     const time=turnAt(index,turn);
-    const deal=(i,amount,kind,skill=null,manual=false)=>{
-      const damage=Math.min(foe,amount);
-      foe-=damage;
+    const deal=(i,amount,kind,skill=null)=>{
+      const target=enemies.findIndex(enemy=>enemy.hp>0);
+      if(target<0) return;
+      const enemy=enemies[target], damage=Math.min(enemy.hp,amount);
+      enemy.hp-=damage;
+      foe=enemies.reduce((sum,entry)=>sum+entry.hp,0);
       team[i].damage+=damage;
-      events.push({kind,from:i,value:damage,skill,manual});
+      events.push({kind,from:i,enemy:target,value:damage,skill});
     };
     for(const i of live) {
       if(foe<=0) break;
       const member=team[i], id=member.id, trained=ranks[i]>=3;
-      const manual=Boolean(orders[turn]?.includes(i));
       const injured=live.filter(slot=>team[slot].hp<team[slot].max);
-      if(time<member.ready+(manual?0:AUTO_GRACE)||id==="rabbit"&&!injured.length) continue;
+      if(time<member.ready||id==="rabbit"&&!injured.length) continue;
       member.ready=time+cooldowns[id];
       if(id==="rabbit") {
         const target=lowest(injured), other=team[target];
         const amount=Math.min(other.max-other.hp,trained?19:12);
         other.hp+=amount;
         member.healed+=amount;
-        events.push({kind:"heal",from:i,to:target,value:amount,skill:id,manual});
+        events.push({kind:"heal",from:i,to:target,value:amount,skill:id});
       } else if(id==="raccoon") {
         member.guardUntil=turn+1;
-        events.push({kind:"guard",from:i,to:i,skill:id,manual});
+        events.push({kind:"guard",from:i,to:i,skill:id});
       } else {
         const charging=index===2&&[2,4,6,8].includes(turn);
         const amount=id==="fox"?(trained?12:7):charging?(trained?20:13):(trained?9:6);
-        deal(i,amount,"special",id,manual);
+        if(id==="fox") {
+          deal(i,Math.ceil(amount/2),"special",id);
+          deal(i,Math.floor(amount/2),"special",id);
+        } else deal(i,amount,"special",id);
       }
     }
     for(const i of live) {
@@ -145,17 +156,25 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
       deal(i,allies[team[i].id].power+Math.floor((ranks[i]-1)*.8),"attack");
     }
     if(foe>0) {
-      const targets=attack?.targets??[(index===4&&turn%3===0&&backs.length)?lowest(backs):(fronts[0]??backs[0])];
-      for(const i of targets) {
-        const member=team[i];
-        const raw=attack?.damage??hunt.hit;
-        const guarded=member.id==="raccoon"&&turn<=member.guardUntil;
-        const trained=ranks[i]>=3;
-        const guard=member.id==="raccoon" ? (guarded?(trained?.53:.60):trained?.62:.70) : 1;
-        const hit=Math.min(member.hp,Math.round(raw*guard));
-        member.hp-=hit;
-        member.received+=hit;
-        events.push({kind:"hit",to:i,value:hit});
+      for(let enemy=0;enemy<enemies.length;enemy++) {
+        if(enemies[enemy].hp<=0) continue;
+        const liveFront=living([0,1]),liveBack=living([2,3]);
+        if(!liveFront.length&&!liveBack.length) break;
+        const technique=enemies[enemy].boss?attack:null;
+        const announced=technique?.targets.filter(i=>team[i]?.hp>0);
+        const targets=announced?.length?announced:[(index===4&&turn%3===0&&liveBack.length)?lowest(liveBack):(liveFront[0]??liveBack[0])];
+        for(const i of targets) {
+          const member=team[i];
+          const share=index===2?(enemy===0?.8:.1):1/3;
+          const raw=technique?.damage??Math.max(1,Math.round(hunt.hit*share));
+          const guarded=member.id==="raccoon"&&turn<=member.guardUntil;
+          const trained=ranks[i]>=3;
+          const guard=member.id==="raccoon" ? (guarded?(trained?.53:.60):trained?.62:.70) : 1;
+          const hit=Math.min(member.hp,Math.round(raw*guard));
+          member.hp-=hit;
+          member.received+=hit;
+          events.push({kind:"hit",to:i,enemy,value:hit});
+        }
       }
       if(attack) text=`${attack.name} · ${attack.row} 피격`;
       const survivors=living([0,1,2,3]);
@@ -234,14 +253,14 @@ function changeHunt(index) {
 }
 function newCycle(start, saved={}) {
   const {lineup=state.lineup,index=state.hunt,garden=state.garden,wounds=state.wounds,manual=false,
-    ready=state.cooldowns,orders={},ranks=lineup.map(id=>id?level(id):0)}=saved;
-  return {start,index,lineup:[...lineup],garden,wounds:{...wounds},manual,ready:{...ready},orders,ranks,
-    result:simulate(index,lineup,garden,wounds,ready,orders,ranks)};
+    ready=state.cooldowns,ranks=lineup.map(id=>id?level(id):0)}=saved;
+  return {start,index,lineup:[...lineup],garden,wounds:{...wounds},manual,ready:{...ready},ranks,
+    result:simulate(index,lineup,garden,wounds,ready,ranks)};
 }
 function snapshotRound() {
   if(!round) return null;
-  const {lineup,index,garden,wounds,manual,ready,orders,ranks}=round;
-  return {lineup,index,garden,wounds,manual,ready,orders,ranks};
+  const {lineup,index,garden,wounds,manual,ready,ranks}=round;
+  return {lineup,index,garden,wounds,manual,ready,ranks};
 }
 function begin(start) {
   round=newCycle(start);
@@ -302,21 +321,10 @@ function battleView(now=Date.now()) {
 function skillStatus(view,i) {
   const id=round?.lineup[i];
   if(!id||!view.combat||!view.data.hp[i]||!view.data.foe||view.frame>=14) return {label:"—",enabled:false};
-  if(round.orders[view.frame+1]?.includes(i)) return {label:"예약",enabled:false};
   const wait=Math.max(0,view.data.ready[i]-view.elapsed);
   if(wait>0) return {label:(Math.ceil(wait/100)/10).toFixed(1),enabled:false,fill:wait/cooldowns[id]*100};
   if(id==="rabbit"&&!view.data.hp.some((hp,slot)=>hp>0&&hp<view.data.max[slot])) return {label:"대기",enabled:false};
-  return {label:"발동",enabled:true};
-}
-function orderSkill(i) {
-  const view=battleView();
-  if(!skillStatus(view,i).enabled) return;
-  const turn=view.frame+1;
-  (round.orders[turn]??=[]).push(i);
-  round.result=simulate(round.index,round.lineup,round.garden,round.wounds,round.ready,round.orders,round.ranks);
-  state.active=snapshotRound();
-  save();
-  renderCombat();
+  return {label:"자동",enabled:true};
 }
 function move(from,to) {
   if(from===to||to<0||to>3||!slotOpen(to)) return false;
@@ -430,13 +438,14 @@ let lastHud="";
 let skillLineup="";
 function renderCombat() {
   const view=battleView(), hunt=hunts[round?.index??state.hunt];
-  const label=state.held?"야영지 대기":view.camp?"야영지 휴식":hunt.name;
-  const phase=state.held?"출격 대기":view.camp?`${icon("clock")} ${view.rest}초`:`${icon("sword")} 자동`;
   const {data}=view;
-  const skills=view.combat&&view.age<660?data.events.filter(event=>event.skill):[];
+  const remaining=data?.enemies.filter(hp=>hp>0).length??0;
+  const label=state.held?"야영지 대기":view.camp?"야영지 휴식":hunt.name+" · "+remaining+"/3";
+  const phase=state.held?"출격 대기":view.camp?`${icon("clock")} ${view.rest}초`:`${icon("sword")} 자동`;
+  const skills=view.combat&&view.age<660?[...new Map(data.events.filter(event=>event.skill).map(event=>[event.skill,event])).values()]:[];
   const line=state.held?"회복 완료 · 출격을 기다리는 중":view.camp?(round.result.won?"체력 저하 · 야영지 회복":
     `${round.result.survivors?"사냥 실패":"팀 전멸"} · 회복 후 이전 사냥터로`):data.text;
-  const alert=`${skills.length?`<div class="skill-feed">${skills.map(event=>`<span class="${event.skill}">${icon(roleIcons[event.skill])} ${allies[event.skill].skill}${event.manual?" · 직접":""}</span>`).join("")}</div>`:""}${view.camp?`<div class="fight-message">${icon("clock")} ${line}</div>`:""}`;
+  const alert=`${skills.length?`<div class="skill-feed">${skills.map(event=>`<span class="${event.skill}">${icon(roleIcons[event.skill])} ${allies[event.skill].skill}</span>`).join("")}</div>`:""}${view.camp?`<div class="fight-message">${icon("clock")} ${line}</div>`:""}`;
   const warning=view.combat?data.warning:null;
   $("boss-warning").hidden=!warning;
   if(warning) {
@@ -453,11 +462,11 @@ function renderCombat() {
   const lineupKey=layout.join(",");
   if(skillLineup!==lineupKey) {
     skillLineup=lineupKey;
-    $("skills").innerHTML=layout.map((id,i)=>id?`<button class="skill-key ${id}" data-act="skill-${i}" style="grid-column:${i+1}" title="${allies[id].skill}">${icon(roleIcons[id])}<span></span></button>`:"").join("");
+    $("skills").innerHTML=layout.map((id,i)=>id?`<div class="skill-key ${id}" data-skill="${i}" style="grid-column:${i+1}" title="${allies[id].skill}">${icon(roleIcons[id])}<span></span></div>`:"").join("");
   }
   for(const button of $("skills").children) {
-    const i=Number(button.dataset.act.slice(6)), status=skillStatus(view,i);
-    button.disabled=!status.enabled;
+    const i=Number(button.dataset.skill), status=skillStatus(view,i);
+    button.classList.toggle("cooling",!status.enabled);
     button.lastElementChild.textContent=status.label;
     button.style.setProperty("--cooldown",(status.fill||0)+"%");
     button.setAttribute("aria-label",`${allies[layout[i]].skill} · ${status.label}`);
@@ -521,7 +530,6 @@ document.addEventListener("click",(event)=>{
   if(!action) return;
   if(action==="back") { closeDetail(); return; }
   if(action==="garden"||action==="tower"||action==="inventory"||action.startsWith("ally-")) { openDetail(action); return; }
-  if(action.startsWith("skill-")) { orderSkill(Number(action.slice(6))); return; }
   if(action==="depart"&&state.held) {
     const now=Date.now();
     for(const id of Object.keys(state.cooldowns)) state.cooldowns[id]=Math.max(0,state.cooldowns[id]-(now-state.since));
