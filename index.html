@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#222a28">
 <title>동물 용병단 키우기 · 반딧불 숲</title>
-<link rel="stylesheet" href="game.css?v=20261111-expansion2">
-<script defer src="game.js?v=20261111-expansion2"></script>
-<script defer src="world.js?v=20261111-expansion2"></script>
+<link rel="stylesheet" href="game.css?v=20261111-animal-target1">
+<script defer src="game.js?v=20261111-animal-target1"></script>
+<script defer src="world.js?v=20261111-animal-target1"></script>
 </head>
 <body>
 <main class="game">
@@ -15,6 +15,11 @@
   <div id="notice" role="status"></div>
   <section class="scene" aria-label="자동 사냥">
     <canvas id="world" width="280" height="220"></canvas>
+    <div id="enemy-targets" aria-label="공격 대상 선택">
+      <button class="enemy-hit" data-target="0" hidden></button>
+      <button class="enemy-hit" data-target="1" hidden></button>
+      <button class="enemy-hit" data-target="2" hidden></button>
+    </div>
     <div class="scene-shade"></div>
     <div class="scene-label" id="scene-label"></div>
     <span class="chapter" id="phase"></span>

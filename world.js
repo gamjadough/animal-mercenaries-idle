@@ -129,12 +129,18 @@
     layer.height=height;
     const g=layer.getContext("2d");
     const rand=random(142);
-    const town=place==="town", camp=place==="camp", night=place==="ruin", canyon=place==="canyon";
+    const town=place==="town", camp=place==="camp", night=place==="ruin", canyon=place==="canyon",highland=place==="highland";
     const sky=town?["#172c36","#a78861"]:night?["#0c1528","#425575"]:["#17313e","#8ca588"];
     const gradient=g.createLinearGradient(0,12,0,ground);
     gradient.addColorStop(0,sky[0]);
     gradient.addColorStop(1,sky[1]);
     block(g,0,0,width,height,gradient);
+    if(highland) {
+      block(g,0,0,width,height,"#749ba5");
+      polygon(g,[[0,141],[68,66],[113,135],[183,51],[280,140],[280,182],[0,182]],"#b1b5a1");
+      polygon(g,[[42,96],[68,66],[87,94],[68,86]],"#d8dfce");
+      polygon(g,[[158,83],[183,51],[210,88],[184,74]],"#e2e2d2");
+    }
     if(canyon) {
       block(g,0,0,width,height,"#594c4a");
       for(const [x,top,span] of [[0,63,49],[58,111,25],[222,72,58],[188,116,24]]) {
@@ -149,12 +155,14 @@
     ridge(g,143,14,4,night?"#2f415d":"#486e66");
     const distant=night?["#233047","#3c4c67","#5f7084","#34475f","#4b6077","#71859a"]:
       ["#264a47","#3e6358","#71887a","#385e54","#527866","#86a28b"];
-    for(let i=0;i<15;i++) oak(g,i*22+rand()*12,151+rand()*19,.49+rand()*.25,distant,i+81);
+    if(!highland) for(let i=0;i<15;i++) oak(g,i*22+rand()*12,151+rand()*19,.49+rand()*.25,distant,i+81);
     ridge(g,164,9,.5,night?"#303e40":"#495a49");
     const trees=night?["#141e2a","#343b50","#655e68","#243948","#3c5666","#5a7582"]:
       ["#152c2b","#594735","#9b7551","#24493c","#396448","#678f61"];
-    oak(g,23,ground,1.35,trees,17);
-    oak(g,264,ground,1.47,trees,23);
+    if(!highland) {
+      oak(g,23,ground,1.35,trees,17);
+      oak(g,264,ground,1.47,trees,23);
+    }
     if(town) {
       for(const [x,y,scale] of [[80,ground-4,1],[143,ground-7,.7],[210,ground-4,1.05]]) {
         const left=x-27*scale,right=x+27*scale,top=y-36*scale;
@@ -204,66 +212,6 @@
   };
   const scarves = {green:"#8fac5b",red:"#b7583e",blue:"#4c91a4"};
 
-  function animal(x,y,profile,bob,armored) {
-    const species=Object.hasOwn(fur,profile?.species)?profile.species:"fox";
-    const kind=species==="wolf"?"fox":species==="bear"?"bear":species;
-    const [shade,coat,cream]=fur[species];
-    const outline="#19232d";
-    const scarf=scarves[profile?.outfit]||scarves.green;
-    const h=y-bob;
-    if(kind==="fox"||kind==="raccoon") {
-      polygon(ctx,[[x-6,h-11],[x-25,h-18],[x-31,h-29],[x-22,h-30],[x-10,h-23],[x-3,h-17]],outline);
-      polygon(ctx,[[x-8,h-13],[x-24,h-20],[x-29,h-28],[x-22,h-28],[x-12,h-23],[x-5,h-17]],coat);
-      polygon(ctx,[[x-28,h-28],[x-22,h-28],[x-20,h-24],[x-23,h-21]],cream);
-      if(kind==="raccoon") {
-        block(ctx,x-24,h-26,3,7,shade);
-        block(ctx,x-17,h-23,3,7,shade);
-      }
-    } else {
-      oval(ctx,x-13,h-13,5,5,outline);
-      oval(ctx,x-13,h-14,4,3,cream);
-    }
-    block(ctx,x-9,h-8,8,8,outline);
-    block(ctx,x+3,h-8,9,8,outline);
-    block(ctx,x-8,h-6,6,5,shade);
-    block(ctx,x+4,h-6,7,5,shade);
-    polygon(ctx,[[x-12,h-22],[x+8,h-24],[x+13,h-15],[x+10,h-3],[x-10,h-3]],outline);
-    polygon(ctx,[[x-10,h-21],[x+7,h-22],[x+11,h-15],[x+8,h-5],[x-8,h-5]],armored?"#77858b":shade);
-    polygon(ctx,[[x+1,h-20],[x+8,h-18],[x+7,h-8],[x+1,h-6]],armored?"#b8c4c1":cream);
-    if(kind==="rabbit") {
-      oval(ctx,x-7,h-50,5,13,outline);
-      oval(ctx,x-7,h-50,3,11,coat);
-      oval(ctx,x-7,h-50,1,8,"#d88d8b");
-      oval(ctx,x+3,h-49,5,14,outline);
-      oval(ctx,x+3,h-49,3,12,coat);
-      oval(ctx,x+3,h-49,1,8,"#d88d8b");
-    } else if(kind==="fox") {
-      polygon(ctx,[[x-13,h-35],[x-14,h-54],[x-1,h-44],[x+7,h-43],[x+13,h-52],[x+15,h-34]],outline);
-      polygon(ctx,[[x-12,h-37],[x-12,h-50],[x-2,h-43],[x+8,h-42],[x+12,h-48],[x+13,h-36]],coat);
-      block(ctx,x-11,h-45,3,5,shade);
-    } else {
-      for(const ear of [-10,9]) {
-        oval(ctx,x+ear,h-43,6,6,outline);
-        oval(ctx,x+ear,h-43,4,4,coat);
-        oval(ctx,x+ear,h-43,2,2,shade);
-      }
-    }
-    polygon(ctx,[[x-15,h-38],[x-8,h-45],[x+8,h-44],[x+14,h-38],[x+20,h-31],[x+14,h-25],[x-3,h-23],[x-14,h-29]],outline);
-    polygon(ctx,[[x-13,h-37],[x-7,h-43],[x+7,h-42],[x+12,h-37],[x+17,h-31],[x+13,h-27],[x-3,h-25],[x-12,h-30]],coat);
-    block(ctx,x-7,h-42,13,1,cream);
-    block(ctx,x-12,h-36,2,5,shade);
-    polygon(ctx,[[x-2,h-32],[x+6,h-30],[x+17,h-32],[x+13,h-27],[x-3,h-25]],cream);
-    if(kind==="raccoon") polygon(ctx,[[x-7,h-38],[x+13,h-38],[x+17,h-33],[x+3,h-32],[x-6,h-34]],"#434954");
-    block(ctx,x+5,h-36,6,2,outline);
-    block(ctx,x+8,h-35,2,2,"#dcc999");
-    block(ctx,x+16,h-32,3,2,outline);
-    polygon(ctx,[[x-10,h-23],[x+10,h-23],[x+8,h-17],[x-6,h-17],[x-15,h-10],[x-13,h-20]],scarf);
-    block(ctx,x+9,h-17,7,5,coat);
-    block(ctx,x-7,h-13,9,2,outline);
-    block(ctx,x-3,h-14,3,3,"#cfac63");
-    block(ctx,x-7,h-6,5,1,coat);
-  }
-
   function creature(index,x,y,wings) {
     const flap=wings?3:0;
     if(index===3) {
@@ -284,6 +232,39 @@
       return;
     }
     if(index===0) {
+      for(let i=0;i<5;i++) {
+        const dx=x-18+i*8, h=y-8-Math.sin(i+flap)*2;
+        oval(ctx,dx,h,7,7,"#142b2a");
+        oval(ctx,dx,h-1,5,5,i%2?"#86a468":"#b3b87c");
+        polygon(ctx,[[dx-2,h-6],[dx,h-13],[dx+3,h-6]],"#e0ca91");
+        block(ctx,dx-3,y-2,3,3,"#786a43");
+      }
+      block(ctx,x-20,y-13,2,3,"#e8c18a");
+      block(ctx,x-16,y-13,2,3,"#263738");
+      return;
+    }
+    if(index===5) {
+      for(const side of [-1,1]) for(let i=0;i<4;i++) {
+        polygon(ctx,[[x+side*5,y-11],[x+side*(17+i*3),y-24+i*6],[x+side*(25+i),y-3]],"#172d37");
+        block(ctx,x+side*(20+i),y-6,2,5,"#78a6a4");
+      }
+      oval(ctx,x+8,y-15,13,11,"#243f47");
+      oval(ctx,x+8,y-17,10,8,"#4e8990");
+      oval(ctx,x-7,y-10,10,8,"#25343c");
+      block(ctx,x-13,y-13,2,2,"#edd793");block(ctx,x-8,y-13,2,2,"#edd793");
+      block(ctx,x+7,y-21,5,3,"#a3c8bb");
+      return;
+    }
+    if(index===6) {
+      polygon(ctx,[[x-8,y-15],[x-37,y-33-flap*5],[x-30,y-40-flap*5],[x-1,y-25],[x+30,y-40+flap*3],[x+37,y-32+flap*3],[x+10,y-13],[x,y-3]],"#172935");
+      polygon(ctx,[[x-8,y-18],[x-33,y-34-flap*5],[x-29,y-36-flap*5],[x-1,y-22],[x+29,y-36+flap*3],[x+32,y-32+flap*3],[x+9,y-17]],"#8e9c9e");
+      oval(ctx,x,y-17,8,11,"#4c6270");
+      oval(ctx,x-5,y-27,9,7,"#d7d8c6");
+      polygon(ctx,[[x-12,y-28],[x-22,y-23],[x-11,y-21]],"#d4ac60");
+      block(ctx,x-10,y-29,3,2,"#172935");
+      return;
+    }
+    if(index===7) {
       const h=y-17-flap;
       polygon(ctx,[[x,h],[x-22,h-6],[x-25,h-22],[x-10,h-19],[x,h-10],[x+13,h-22],[x+25,h-19],[x+18,h-5]],"#584b57");
       polygon(ctx,[[x,h-2],[x-20,h-8],[x-22,h-20],[x-10,h-17],[x,h-9],[x+14,h-20],[x+22,h-17],[x+16,h-6]],"#deb882");
@@ -328,32 +309,6 @@
   function shadow(x,y,w) {
     block(ctx,x-w/2+3,y-2,w-6,4,"#222e2c77");
     block(ctx,x-w/2,y-1,w,2,"#222e2c66");
-  }
-  function hero(x,y,profile,weaponId,bob,attack) {
-    shadow(x,y,34);
-    animal(x,y,profile,bob,Boolean(profile?.showArmor));
-    if(!weaponId) return;
-    const grip=y-17-bob;
-    if(weaponId==="bow") {
-      block(ctx,x+16,grip-10,2,21,"#cf905f");
-      block(ctx,x+14,grip-11,4,2,"#f0c384");
-      block(ctx,x+14,grip+9,4,2,"#f0c384");
-      block(ctx,x+14,grip-9,1,18,"#f3dfac");
-    } else if (weaponId==="staff") {
-      block(ctx,x+15,grip-15,3,26,"#9c684a");
-      block(ctx,x+14,grip-18,5,6,"#78c799");
-      block(ctx,x+15,grip-20,3,8,"#b5f0aa");
-    } else {
-      ctx.save();
-      ctx.translate(x+15,grip);
-      ctx.rotate(attack?1.34:.30);
-      block(ctx,-2,-21,5,21,"#303941");
-      block(ctx,-1,-22,3,20,"#e7ece0");
-      block(ctx,1,-20,1,18,"#8fa8ae");
-      block(ctx,-4,-2,9,2,"#f4c47c");
-      block(ctx,0,0,2,5,"#8b6554");
-      ctx.restore();
-    }
   }
   function particles(x,y,age,color,count) {
     for(let i=0;i<count;i++) {
@@ -404,27 +359,79 @@
   });
   sceneSize.observe(canvas);
   const teamY=[182,167,182,167];
-  const weaponsByAlly={raccoon:"",fox:"sword",rabbit:"staff",owl:"bow",wolf:"sword",bear:""};
   function drawMember(id,x,y,bob,attack) {
-    const a=allies[id];
+    const outline="#13212a", a=allies[id];
+    const palette=fur[id]||["#4f4c58","#9c8e9d","#ded8bd"];
+    const [shade,coat,light]=palette;
+    const step=motion.matches?0:bob*2;
     ctx.save();
     ctx.translate(Math.round(x),Math.round(y));
-    ctx.scale(.68,.68);
+    ctx.scale(.67,.67);
+    shadow(0,0,id==="bear"?51:42);
     if(id==="owl") {
-      shadow(0,0,34);
-      const dy=-bob;
-      oval(ctx,0,-17+dy,16,17,"#19232d");
-      oval(ctx,0,-17+dy,13,14,"#ad8e8b");
-      polygon(ctx,[[-16,-35+dy],[-16,-44+dy],[-7,-39+dy],[8,-39+dy],[16,-44+dy],[17,-31+dy],[9,-21+dy],[-10,-21+dy]],"#19232d");
-      oval(ctx,0,-32+dy,14,9,"#bfa296");
+      const flap=step*3;
+      polygon(ctx,[[-6,-15],[-28,-27-flap],[-22,-30-flap],[-2,-22],[15,-30],[27,-20+flap],[21,-17+flap],[10,-20],[8,-9]],outline);
+      polygon(ctx,[[-7,-17],[-25,-27-flap],[-21,-27-flap],[-1,-20],[14,-27],[24,-20+flap],[20,-20+flap],[9,-22],[7,-12]],"#8a7c93");
+      oval(ctx,2,-15,13,12,outline);oval(ctx,2,-15,10,9,"#b3a28f");
+      polygon(ctx,[[-6,-23],[-9,-36],[-2,-32],[9,-32],[16,-37],[16,-23],[10,-17],[-1,-17]],outline);
+      oval(ctx,4,-26,11,8,"#afa2ae");
       for(const side of [-1,1]) {
-        oval(ctx,side*6,-30+dy,5,5,"#f4dfba");
-        block(ctx,side*6-1,-31+dy,2,3,"#48394a");
+        oval(ctx,4+side*5,-27,4,4,"#e8d5ad");
+        block(ctx,4+side*5,-28,2,3,"#17252e");
       }
-      block(ctx,0,-25+dy,3,3,"#f1b96c");
-      block(ctx,-7,-20+dy,14,3,"#71a5b2");
-      block(ctx,12,-18+dy,3,9,"#d7ad75");
-    } else hero(0,0,{species:id,outfit:a.outfit},weaponsByAlly[id],bob,attack);
+      polygon(ctx,[[7,-23],[14,-23],[10,-19]],"#dbb275");
+      block(ctx,-2,-6,4,5,"#c6a36d");block(ctx,8,-6,4,5,"#c6a36d");
+    } else if(id==="rabbit") {
+      oval(ctx,-8,-12,17,12,outline);oval(ctx,-8,-13,14,10,coat);
+      oval(ctx,-21,-11,5,5,light);
+      for(const [px,py] of [[-14,-3],[3,-3]]) {
+        block(ctx,px,py-step,12,4+step,outline);
+        block(ctx,px+1,py-step,9,2+step,light);
+      }
+      oval(ctx,9,-20,13,10,outline);oval(ctx,9,-21,10,8,coat);
+      for(const ear of [1,11]) {
+        polygon(ctx,[[ear,-27],[ear-2,-44],[ear+3,-49],[ear+6,-42],[ear+5,-27]],outline);
+        block(ctx,ear,-42,3,14,light);block(ctx,ear+1,-43,1,12,"#b67d82");
+      }
+      block(ctx,12,-24,3,3,"#15242d");block(ctx,20,-20,3,2,"#c18f86");
+      block(ctx,2,-15,11,3,"#8fac5b");
+    } else {
+      const bear=id==="bear", wolf=id==="wolf";
+      const back=bear?-25:-19, length=bear?22:18, shoulder=bear?26:21;
+      if(!bear) {
+        polygon(ctx,[[back+7,-10],[back-14,-8],[back-25,-19],[back-22,-25],[back-7,-18],[back+6,-19]],outline);
+        polygon(ctx,[[back+6,-12],[back-14,-11],[back-22,-20],[back-20,-22],[back-6,-16],[back+4,-17]],coat);
+        if(id==="raccoon") {
+          block(ctx,back-16,-20,3,7,shade);block(ctx,back-10,-17,3,7,shade);
+        } else polygon(ctx,[[back-22,-20],[back-20,-22],[back-14,-19],[back-16,-15]],light);
+      }
+      for(const [i,leg] of [-15,-4,9,17].entries()) {
+        const movement=(i%2?step:-step);
+        block(ctx,leg,-11+movement,bear?8:6,11-movement,outline);
+        block(ctx,leg+1,-10+movement,bear?5:3,8-movement,shade);
+        block(ctx,leg,-2,bear?9:7,2,outline);
+      }
+      polygon(ctx,[[back,-9],[back-2,-20],[back+6,-shoulder-4],[length-6,-shoulder-6],[length+2,-18],[length+3,-8],[length-4,-5],[back+8,-6]],outline);
+      polygon(ctx,[[back+2,-10],[back,-19],[back+7,-shoulder-2],[length-7,-shoulder-4],[length,-17],[length,-10],[length-5,-8],[back+8,-9]],coat);
+      block(ctx,back+8,-shoulder-2,length-back-17,2,light);
+      polygon(ctx,[[8,-19],[8,-32],[13,-38],[22,-34],[27,-27],[wolf?39:33,-24],[wolf?38:32,-18],[24,-14],[14,-13]],outline);
+      polygon(ctx,[[11,-20],[11,-31],[14,-35],[21,-31],[24,-25],[wolf?36:30,-23],[wolf?35:29,-20],[23,-17],[14,-16]],coat);
+      if(bear) {
+        oval(ctx,10,-31,5,5,outline);oval(ctx,10,-31,3,3,shade);
+        oval(ctx,22,-32,4,4,outline);oval(ctx,22,-32,2,2,shade);
+      } else {
+        polygon(ctx,[[11,-29],[9,-42],[15,-38],[18,-31]],outline);
+        polygon(ctx,[[20,-30],[21,-40],[26,-34],[25,-27]],outline);
+        block(ctx,11,-38,2,5,shade);
+      }
+      polygon(ctx,[[20,-22],[wolf?36:30,-23],[wolf?35:29,-20],[23,-17],[17,-17]],light);
+      if(id==="raccoon") polygon(ctx,[[12,-30],[24,-29],[26,-24],[17,-24],[11,-26]],"#243441");
+      block(ctx,21,-28,3,2,outline);block(ctx,wolf?36:30,-24,3,2,outline);
+      polygon(ctx,[[8,-22],[13,-24],[19,-14],[16,-10],[12,-17],[4,-14]],scarves[a.outfit]);
+      if(state.equipped[id]?.armor) {
+        block(ctx,1,-22,7,12,"#30444f");block(ctx,2,-21,5,9,"#9eafb4");
+      }
+    }
     ctx.restore();
   }
 
@@ -536,6 +543,8 @@
     drawCampStrip(clock);
     drawFacilities();
     const view=battleView(), hunt=hunts[round?.index??state.hunt], place=view.camp?"town":hunt.place;
+    const targetButtons=$("enemy-targets").children;
+    if(view.camp) for(const button of targetButtons) button.hidden=true;
     ctx.drawImage(background(place),0,0);
     for(let i=0;i<13;i++) {
       const x=(i*43+clock*(.007+i%3*.003))%width, y=67+i*17%100+Math.sin(clock*.001+i)*7;
@@ -563,6 +572,19 @@
     }
     const group=enemyGroup(round.index);
     const enemySpot=i=>({x:target+[-7,12,17][i],y:ground+[0,-25,-5][i]});
+    const scale=Math.max(canvas.clientWidth/width,canvas.clientHeight/height);
+    const offsetX=(canvas.clientWidth-width*scale)/2,offsetY=canvas.clientHeight-height*scale;
+    const focused=focusChoice(view);
+    for(let i=0;i<targetButtons.length;i++) {
+      const button=targetButtons[i], spot=enemySpot(i);
+      button.hidden=!view.combat||view.data.enemies[i]<=0;
+      button.style.left=(offsetX+(spot.x-19)*scale)+"px";
+      button.style.top=(offsetY+(spot.y-(group[i].boss?49:43))*scale)+"px";
+      button.style.width=(38*scale)+"px";
+      button.style.height=((group[i].boss?51:45)*scale)+"px";
+      button.setAttribute("aria-label",group[i].name+" "+(i+1)+" 우선 공격");
+      button.setAttribute("aria-pressed",String(focused===i));
+    }
     for(let i=2;i>=0;i--) {
       const enemy=group[i], spot=enemySpot(i);
       const attacked=flash&&view.data.events.some(e=>(e.kind==="attack"||e.kind==="special")&&e.enemy===i);
@@ -571,6 +593,12 @@
       const lunging=flash&&view.data.events.some(e=>e.kind==="hit"&&e.enemy===i);
       const advance=lunging?Math.sin(progress*Math.PI)*7:0;
       const y=spot.y-(enemy.boss&&view.data.warning?5:0);
+      if(focused===i) {
+        oval(ctx,spot.x,spot.y,17,4,"#f4c76e");
+        oval(ctx,spot.x,spot.y-1,13,2,"#60492f");
+        block(ctx,spot.x-3,spot.y-(enemy.boss?53:42),7,2,"#f4c76e");
+        polygon(ctx,[[spot.x-3,spot.y-(enemy.boss?51:40)],[spot.x+4,spot.y-(enemy.boss?51:40)],[spot.x,spot.y-(enemy.boss?47:36)]],"#f4c76e");
+      }
       shadow(spot.x,spot.y,enemy.boss?45:24);
       ctx.save();
       ctx.translate(spot.x+hit-advance,y);

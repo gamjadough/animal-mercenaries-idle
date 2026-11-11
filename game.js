@@ -14,11 +14,11 @@ const allies = {
   bear: {name:"바위", animal:"곰", role:"방어", hp:148, power:6, outfit:"green", skill:"대지의 포효"}
 };
 const hunts = [
-  {name:"반딧불 숲길", foe:"솔잎 나방", place:"trail", sprite:0, hp:102, hit:10, seconds:10, herbs:3, twigs:1, target:"앞줄"},
+  {name:"반딧불 숲길", foe:"가시 애벌레", place:"trail", sprite:0, hp:102, hit:10, seconds:10, herbs:3, twigs:1, target:"앞줄"},
   {name:"밤송이 덤불", foe:"밤송이 딱정벌레", place:"camp", sprite:1, hp:148, hit:15, seconds:13, herbs:1, twigs:3, target:"앞줄"},
   {name:"달밤 둥지", foe:"달밤 올빼미", place:"ruin", sprite:2, hp:450, hit:19, seconds:19, herbs:5, twigs:5, target:"뒷줄 우선 · 뒷줄 전체", recruit:"올빼미 정찰병 달초"},
-  {name:"이슬 고개", foe:"이슬방울 나방", place:"trail", sprite:0, hp:236, hit:22, seconds:12, herbs:5, twigs:2, target:"앞줄"},
-  {name:"바람 고원", foe:"바람길 딱정벌레", place:"camp", sprite:1, hp:275, hit:23, seconds:13, herbs:2, twigs:6, target:"뒷줄 우선"},
+  {name:"이슬 고개", foe:"이슬 거미", place:"trail", sprite:5, hp:236, hit:22, seconds:12, herbs:5, twigs:2, target:"앞줄"},
+  {name:"바람 고원", foe:"칼바람 독수리", place:"highland", sprite:6, hp:275, hit:23, seconds:13, herbs:2, twigs:6, target:"뒷줄 우선"},
   {name:"붉은 협곡", foe:"협곡 늑대", place:"canyon", sprite:3, hp:340, hit:28, seconds:14, herbs:3, twigs:4, target:"뒷줄 기습"},
   {name:"철갑 둥지", foe:"철갑 멧돼지", place:"canyon", sprite:4, hp:650, hit:32, seconds:22, herbs:6, twigs:6, target:"앞줄 전체 · 돌진",boss:true}
 ];
@@ -49,7 +49,7 @@ function fresh(now) {
   return {
     lineup:["raccoon","fox","rabbit",null], owned:["raccoon","fox","rabbit"], xp:{raccoon:0,fox:0,rabbit:0},
     herbs:0, twigs:0, garden:0, tower:0, wins:[0,0,0,0,0], attempts:[0,0,0,0,0],
-    hunt:0, previous:0, queued:null, since:now, reports:{}, last:{}, training:null, wounds:{}
+    hunt:0, previous:0, queued:null, since:now, reports:{}, last:{}, training:null, wounds:{},held:true,tutorial:0
   };
 }
 function load() {
@@ -66,6 +66,8 @@ state.equipped ??= {};
 state.recovery ??= {};
 state.trainings ??= {};
 state.quarters ??= 0;
+state.tutorial ??= state.attempts.some(count=>count>0)?3:0;
+if(state.tutorial<3) {state.held=true;state.active=null;}
 while(state.wins.length<hunts.length) state.wins.push(0);
 while(state.attempts.length<hunts.length) state.attempts.push(0);
 let canSave = true;
@@ -85,6 +87,7 @@ let inventoryPage=0;
 let forgePage=0;
 let gearOwner="raccoon";
 let equipType="weapon";
+let helpStep=state.tutorial<3?state.tutorial:null;
 
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }
@@ -115,7 +118,8 @@ function enemyGroup(index) {
   const hunt=hunts[index], boss=index===2||hunt.boss;
   const health=boss?[Math.round(hunt.hp*.72),Math.round(hunt.hp*.14)]:[Math.floor(hunt.hp/3),Math.floor(hunt.hp/3)];
   health.push(hunt.hp-health[0]-health[1]);
-  return health.map((max,i)=>({max,hp:max,sprite:boss&&i>0?(index===2?0:3):hunt.sprite,boss:boss&&i===0}));
+  return health.map((max,i)=>({max,hp:max,sprite:boss&&i>0?(index===2?7:3):hunt.sprite,boss:boss&&i===0,
+    name:boss&&i>0?(index===2?"어둠 나방":"협곡 늑대"):hunt.foe}));
 }
 function gearStats(id) {
   const result={hp:0,power:0,defense:0};
@@ -127,17 +131,17 @@ function gearStats(id) {
   }
   return result;
 }
-function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.cooldowns, ranks=lineup.map(id=>id?level(id):0), gear=lineup.map(id=>id?gearStats(id):null)) {
+function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.cooldowns, ranks=lineup.map(id=>id?level(id):0), gear=lineup.map(id=>id?gearStats(id):null), targets={}) {
   const hunt=hunts[index];
   const team=lineup.map((id,i)=>id ? {id,max:allies[id].hp+(ranks[i]-1)*4+(gear[i]?.hp||0),hp:0,damage:0,received:0,healed:0,ready:ready[id]||0,guardUntil:0} : null);
   for(const member of team) if(member) member.hp=wounds[member.id]===-1?0:Math.max(1,member.max-(wounds[member.id]||0));
   const snapshots=[];
   const enemies=enemyGroup(index);
-  let foe=hunt.hp, potions=1+herbsLevel;
+  let foe=hunt.hp, potions=1+herbsLevel, focus=null;
   const living=(indices)=>indices.filter(i=>team[i]?.hp>0);
   const snapshot=(text,events=[],warning=null)=>snapshots.push({
     hp:team.map(m=>m?.hp||0), max:team.map(m=>m?.max||0), ready:team.map(m=>m?.ready||0),
-    enemies:enemies.map(enemy=>enemy.hp), foe, text, events, warning, potions
+    enemies:enemies.map(enemy=>enemy.hp), foe, text, events, warning, potions, focus
   });
   const lowest=(indices)=>indices.reduce((a,b)=>team[a].hp<=team[b].hp?a:b);
   function owlMove(turn) {
@@ -155,6 +159,9 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
   let pending=null;
   snapshot("팀이 사냥터로 이동 중이에요.");
   for(let turn=1;turn<=14 && foe>0;turn++) {
+    if(Object.hasOwn(targets,turn)) focus=targets[turn];
+    if(focus!==null&&enemies[focus]?.hp<=0) focus=null;
+    if(focus===-1) focus=null;
     const live=living([0,1,2,3]);
     if(!live.length) break;
     const events=[];
@@ -162,13 +169,14 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
     const attack=pending;
     const time=turnAt(index,turn);
     const deal=(i,amount,kind,skill=null,preferred=0)=>{
-      const target=enemies[preferred]?.hp>0?preferred:enemies.findIndex(enemy=>enemy.hp>0);
+      const target=focus!==null&&enemies[focus]?.hp>0?focus:enemies[preferred]?.hp>0?preferred:enemies.findIndex(enemy=>enemy.hp>0);
       if(target<0) return;
       const enemy=enemies[target], damage=Math.min(enemy.hp,amount);
       enemy.hp-=damage;
       foe=enemies.reduce((sum,entry)=>sum+entry.hp,0);
       team[i].damage+=damage;
       events.push({kind,from:i,enemy:target,value:damage,skill});
+      if(focus===target&&enemy.hp===0) focus=null;
     };
     for(const i of live) {
       if(foe<=0) break;
@@ -333,14 +341,14 @@ function changeHunt(index) {
 }
 function newCycle(start, saved={}) {
   const {lineup=state.lineup,index=state.hunt,garden=state.garden,wounds=state.wounds,manual=false,
-    ready=state.cooldowns,ranks=lineup.map(id=>id?level(id):0),gear=lineup.map(id=>id?gearStats(id):null),quarters=state.quarters}=saved;
-  return {start,index,lineup:[...lineup],garden,wounds:{...wounds},manual,ready:{...ready},ranks,gear,quarters,
-    result:simulate(index,lineup,garden,wounds,ready,ranks,gear)};
+    ready=state.cooldowns,ranks=lineup.map(id=>id?level(id):0),gear=lineup.map(id=>id?gearStats(id):null),quarters=state.quarters,targets={}}=saved;
+  return {start,index,lineup:[...lineup],garden,wounds:{...wounds},manual,ready:{...ready},ranks,gear,quarters,targets,
+    result:simulate(index,lineup,garden,wounds,ready,ranks,gear,targets)};
 }
 function snapshotRound() {
   if(!round) return null;
-  const {lineup,index,garden,wounds,manual,ready,ranks,gear,quarters}=round;
-  return {lineup,index,garden,wounds,manual,ready,ranks,gear,quarters};
+  const {lineup,index,garden,wounds,manual,ready,ranks,gear,quarters,targets}=round;
+  return {lineup,index,garden,wounds,manual,ready,ranks,gear,quarters,targets};
 }
 function begin(start) {
   round=newCycle(start);
@@ -401,6 +409,20 @@ function battleView(now=Date.now()) {
   return {combat,camp:!combat&&visitsCamp(round),elapsed,frame,age,data:result.snapshots[frame],
     rest:Math.max(0,Math.ceil((length-elapsed)/1000)),progress:Math.min(100,elapsed/length*100)};
 }
+function focusChoice(view=battleView()) {
+  if(!round||!view.combat) return null;
+  const chosen=round.targets[view.frame+1]??view.data.focus;
+  return chosen!==null&&chosen>=0&&view.data.enemies[chosen]>0?chosen:null;
+}
+function chooseEnemy(index) {
+  const view=battleView();
+  if(!round||!view.combat||view.frame>=14||!Number.isInteger(index)||view.data.enemies[index]<=0) return;
+  round.targets[view.frame+1]=focusChoice(view)===index?-1:index;
+  round.result=simulate(round.index,round.lineup,round.garden,round.wounds,round.ready,round.ranks,round.gear,round.targets);
+  state.active=snapshotRound();
+  save();
+  renderCombat();
+}
 function move(from,to) {
   if(from===to||to<0||to>3||!slotOpen(to)) return false;
   const roster=typeof from==="string";
@@ -423,6 +445,7 @@ function move(from,to) {
 const btn=(action,label,classes="",disabled=false)=>`<button type="button" class="button ${classes}" data-act="${action}" ${disabled?"disabled":""}>${label}</button>`;
 const glyphs={
   bag:"M3 6h10v8H3z M6 6V3h4v3 M3 9h10m-5 0v2",
+  help:"M8 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z M6 6a2 2 0 0 1 4 0c0 1-2 1-2 3m0 2v1",
   camp:"M1 13L8 3l7 10z M6 13l2-4 2 4",
   feather:"M2 14L12 4 M4 12L5 6l6-4h3v4l-5 5z",
   shield:"M3 4l5-2 5 2v5l-5 5-5-5z M8 5v5", sword:"M12 2l2 2-7 7-2-2z M4 8l4 4m-2-2-4 4",
@@ -467,6 +490,16 @@ function camp() {
     <div class="camp-strip expanded" aria-label="야영지"><canvas id="camp-art" width="300" height="36" aria-hidden="true"></canvas>${buildings}</div>`;
 }
 const facilityArt=(id)=>`<canvas class="facility-art" data-facility="${id}" width="68" height="38" aria-hidden="true"></canvas>`;
+function tutorialMenu() {
+  const steps=[
+    ["자동으로 싸우는 용병단","일반 공격과 특수 기술은 자동으로 사용해요. 한 무리를 쓰러뜨리면 다음 전투로 이어져요.","sword"],
+    ["먼저 쓰러뜨릴 적 고르기","전투 화면의 몬스터나 하단 몬스터 HP를 누르면 팀이 우선 공격해요. 다시 누르면 해제돼요.","target"],
+    ["배치하고 재정비하기","아래 동료를 끌어 앞줄·뒷줄을 바꿔요. 텐트 버튼으로 귀환하면 회복 후 출격을 직접 눌러요.","camp"]
+  ];
+  const [title,body,glyph]=steps[helpStep];
+  return `<div class="tutorial"><div class="panel-title"><h2>${icon(glyph)} ${title}</h2><small>짧은 안내 ${helpStep+1}/3</small></div>
+    <p>${body}</p><div class="detail-grid">${btn("tutorial-skip","건너뛰기")}${btn("tutorial-next",helpStep===2?"시작하기":"다음","primary")}</div></div>`;
+}
 function inventory() {
   const items=[
     ["garden","약초",state.herbs,"시설 강화 · 훈련"],
@@ -627,11 +660,11 @@ function facilityDetail(id) {
 }
 function render() {
   $("stock").innerHTML=resource("garden",state.herbs,"약초")+resource("twig",state.twigs,"나뭇가지")+
-    `<button class="icon-button" data-act="inventory" aria-label="인벤토리">${icon("bag")}</button>`;
+    `<button class="icon-button" data-act="inventory" aria-label="인벤토리">${icon("bag")}</button><button class="icon-button" data-act="help" aria-label="조작 안내">${icon("help")}</button>`;
   const notice=$("notice");
   notice.textContent=canSave?message:"브라우저 저장소를 사용할 수 없어요.";
   if(canSave&&gains) notice.insertAdjacentHTML("beforeend",`<span class="gains">${resource("garden","+"+gains.herbs,"약초")} ${resource("twig","+"+gains.twigs,"나뭇가지")}</span>`);
-  $("panel").innerHTML=detail==="inventory"?inventory():detail==="forge"?forgeMenu():detail==="board"?recruitMenu():detail==="quarters"?quartersMenu():detail==="loadout"?loadoutMenu():
+  $("panel").innerHTML=helpStep!==null?tutorialMenu():detail==="inventory"?inventory():detail==="forge"?forgeMenu():detail==="board"?recruitMenu():detail==="quarters"?quartersMenu():detail==="loadout"?loadoutMenu():
     detail.startsWith("gear-")?gearDetail(Number(detail.slice(5))):detail.startsWith("ally-")?allyDetail(detail.slice(5)):detail?facilityDetail(detail):camp();
   renderCombat();
 }
@@ -658,11 +691,11 @@ function renderCombat() {
   const layout=view.camp?[]:round.lineup;
   const meters=layout.map((id,i)=>id?`<div class="meter ${id}" style="grid-column:${i+1}" aria-label="${allies[id].name} 체력 ${data.hp[i]}/${data.max[i]}">${icon(roleIcons[id])}<i style="--hp:${100*data.hp[i]/data.max[i]}%"></i></div>`:"").join("");
   const enemyMeters=view.camp?"":enemyGroup(round.index).map((enemy,i)=>{
-    const name=enemy.boss?hunt.foe:round.index===2?"호위 나방 "+i:
-      (enemy.sprite===0?"나방 ":enemy.sprite===3?"늑대 ":"딱정벌레 ")+(i+1);
+    const name=enemy.name+(enemy.boss?"":" "+(i+1));
     const hp=data.enemies[i], defeated=hp<=0;
-    return `<div class="meter enemy ${defeated?"defeated":""}" data-enemy="${i}" role="progressbar" aria-label="${name}${defeated?" 처치":""}" aria-valuemin="0" aria-valuemax="${enemy.max}" aria-valuenow="${hp}">
-      <span class="enemy-name">${name}<small>${defeated?"처치":hp+"/"+enemy.max}</small></span>
+    const chosen=focusChoice(view)===i;
+    return `<div class="meter enemy ${defeated?"defeated":""} ${chosen?"focused":""}" data-enemy="${i}" role="progressbar" aria-label="${name}${defeated?" 처치":""}" aria-valuemin="0" aria-valuemax="${enemy.max}" aria-valuenow="${hp}">
+      <span class="enemy-name"><button data-target="${i}" aria-label="${name} 우선 공격" aria-pressed="${chosen}" ${defeated?"disabled":""}>${name}</button><small>${defeated?"처치":hp+"/"+enemy.max}</small></span>
       <i style="--hp:${100*hp/enemy.max}%"></i></div>`;
   }).join("");
   const hud=view.camp?"":`<div class="meters ally-meters" aria-label="동료 체력">${meters}</div><div class="meters enemy-meters" aria-label="몬스터별 체력">${enemyMeters}</div>`;
@@ -670,7 +703,7 @@ function renderCombat() {
     $("fight-alert").innerHTML=alert;
     $("fight-alert").dataset.markup=alert;
   }
-  $("depart").hidden=!state.held;
+  $("depart").hidden=!state.held||state.tutorial<3;
   $("depart").disabled=remainingRecovery>0;
   $("depart").textContent=remainingRecovery?"회복 중 · "+remainingRecovery+"초":"출격";
   const retreat=$("retreat");
@@ -723,12 +756,26 @@ function completeTraining() {
 document.addEventListener("click",(event)=>{
   const button=event.target.closest("button");
   if(!button) return;
+  if(button.dataset.target!==undefined) {chooseEnemy(Number(button.dataset.target));return;}
   if(button.dataset.slot!==undefined) {
     if(performance.now()>=skipClickUntil) chooseSlot(button);
     return;
   }
   const action=button.dataset.act;
   if(!action) return;
+  if(action==="help") {helpStep=0;render();return;}
+  if(action==="tutorial-next"||action==="tutorial-skip") {
+    if(helpStep===null) return;
+    const starting=state.tutorial<3;
+    if(action==="tutorial-next"&&helpStep<2) {
+      helpStep++;
+      if(starting) state.tutorial=helpStep;
+    } else {
+      helpStep=null;
+      if(starting) {state.tutorial=3;state.held=false;begin(Date.now());}
+    }
+    save();render();return;
+  }
   if(action==="back") { closeDetail(); return; }
   if(Object.hasOwn(facilities,action)||action==="inventory"||action.startsWith("ally-")||action.startsWith("gear-")) { openDetail(action); return; }
   if(action==="depart"&&state.held) {
