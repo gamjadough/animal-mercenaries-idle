@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const SAVE_KEY = "acorn-expedition-team-v1";
 const TICK = 200;
 const MAX_OFFLINE = 3 * 24 * 60 * 60 * 1000;
-const LEAD = 700;
+const LEAD = 1100;
 const allies = {
   raccoon: {name:"단단이", animal:"너구리", role:"방어", hp:115, power:7, outfit:"blue", skill:"굳건한 수비"},
   fox: {name:"솔이", animal:"여우", role:"공격", hp:69, power:15, outfit:"red", skill:"연속 베기"},
@@ -118,8 +118,8 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
     let text="동료들이 함께 공격해요.";
     const attack=pending;
     const time=turnAt(index,turn);
-    const deal=(i,amount,kind,skill=null)=>{
-      const target=enemies.findIndex(enemy=>enemy.hp>0);
+    const deal=(i,amount,kind,skill=null,preferred=0)=>{
+      const target=enemies[preferred]?.hp>0?preferred:enemies.findIndex(enemy=>enemy.hp>0);
       if(target<0) return;
       const enemy=enemies[target], damage=Math.min(enemy.hp,amount);
       enemy.hp-=damage;
@@ -153,7 +153,7 @@ function simulate(index, lineup, herbsLevel, wounds=state.wounds, ready=state.co
     }
     for(const i of live) {
       if(foe<=0) break;
-      deal(i,allies[team[i].id].power+Math.floor((ranks[i]-1)*.8),"attack");
+      deal(i,allies[team[i].id].power+Math.floor((ranks[i]-1)*.8),"attack",null,i%enemies.length);
     }
     if(foe>0) {
       for(let enemy=0;enemy<enemies.length;enemy++) {
