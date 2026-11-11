@@ -33,7 +33,6 @@ canvas { width: 100%; height: 100%; display: block; object-fit: cover; object-po
 .fight-message.warning { background: #803d36; }
 .meters { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; }
 .meter { background: #252d2be8; padding: 3px 4px; border-radius: 4px; font-size: .58rem; white-space: nowrap; }
-.meter:last-child { grid-column: 5; }
 .meter span { display: block; overflow: hidden; text-overflow: ellipsis; }
 .meter i { display: block; height: 4px; margin-top: 2px; border-radius: 2px; background: linear-gradient(to right,#a4c57c var(--hp),#705a4b var(--hp)); }
 .meter.enemy i { background: linear-gradient(to right,#efa07c var(--hp),#705a4b var(--hp)); }
@@ -96,6 +95,14 @@ canvas { width: 100%; height: 100%; display: block; object-fit: cover; object-po
 .meter { display: grid; grid-template-columns: auto minmax(0,1fr); align-items: center; gap: 4px; min-height: 17px; }
 .meter > .icon { width: 12px; height: 12px; }
 .meter i { margin-top: 0; }
+#health-bars { display: grid; gap: 4px; }
+.ally-meters { grid-template-columns: repeat(4,minmax(0,1fr)); }
+.enemy-meters { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.enemy-meters .meter { display: grid; grid-template-columns: minmax(0,1fr); gap: 3px; padding: 4px 5px; border: 1px solid #8c715c; }
+.enemy-name { display: flex !important; align-items: center; justify-content: space-between; gap: 3px; font-size: .61rem; }
+.enemy-name small { color: #d7b59a; font-size: .57rem; }
+.enemy-meters .defeated { border-color: #4f5b54; color: #8e9d91; }
+.enemy-meters .defeated small { color: #8e9d91; }
 .icon-button { display: grid; place-items: center; width: 40px; min-height: 40px; padding: 0; border: 1px solid #6c8071; border-radius: 5px; background: #273630; color: #ead7af; font-size: 18px; }
 #retreat { position: absolute; right: 9px; top: 83px; }
 #retreat[aria-pressed=true] { background: #735a38; border-color: #d8af71; }

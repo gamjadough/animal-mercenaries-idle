@@ -445,7 +445,15 @@ function renderCombat() {
   }
   const layout=view.camp?[]:round.lineup;
   const meters=layout.map((id,i)=>id?`<div class="meter ${id}" style="grid-column:${i+1}" aria-label="${allies[id].name} 체력 ${data.hp[i]}/${data.max[i]}">${icon(roleIcons[id])}<i style="--hp:${100*data.hp[i]/data.max[i]}%"></i></div>`:"").join("");
-  const hud=view.camp?"":meters+`<div class="meter enemy" aria-label="${hunt.foe} 체력 ${data.foe}/${hunt.hp}">${icon("target")}<i style="--hp:${100*data.foe/hunt.hp}%"></i></div>`;
+  const enemyMeters=view.camp?"":enemyGroup(round.index).map((enemy,i)=>{
+    const name=enemy.boss?"달밤 올빼미":round.index===2?"호위 나방 "+i:
+      (enemy.sprite===0?"나방 ":"딱정벌레 ")+(i+1);
+    const hp=data.enemies[i], defeated=hp<=0;
+    return `<div class="meter enemy ${defeated?"defeated":""}" data-enemy="${i}" role="progressbar" aria-label="${name}${defeated?" 처치":""}" aria-valuemin="0" aria-valuemax="${enemy.max}" aria-valuenow="${hp}">
+      <span class="enemy-name">${name}<small>${defeated?"처치":hp+"/"+enemy.max}</small></span>
+      <i style="--hp:${100*hp/enemy.max}%"></i></div>`;
+  }).join("");
+  const hud=view.camp?"":`<div class="meters ally-meters" aria-label="동료 체력">${meters}</div><div class="meters enemy-meters" aria-label="몬스터별 체력">${enemyMeters}</div>`;
   if($("fight-alert").dataset.markup!==alert) {
     $("fight-alert").innerHTML=alert;
     $("fight-alert").dataset.markup=alert;
