@@ -129,12 +129,19 @@
     layer.height=height;
     const g=layer.getContext("2d");
     const rand=random(142);
-    const town=place==="town", camp=place==="camp", night=place==="ruin";
+    const town=place==="town", camp=place==="camp", night=place==="ruin", canyon=place==="canyon";
     const sky=town?["#172c36","#a78861"]:night?["#0c1528","#425575"]:["#17313e","#8ca588"];
     const gradient=g.createLinearGradient(0,12,0,ground);
     gradient.addColorStop(0,sky[0]);
     gradient.addColorStop(1,sky[1]);
     block(g,0,0,width,height,gradient);
+    if(canyon) {
+      block(g,0,0,width,height,"#594c4a");
+      for(const [x,top,span] of [[0,63,49],[58,111,25],[222,72,58],[188,116,24]]) {
+        polygon(g,[[x,ground],[x,top+16],[x+span*.45,top],[x+span,top+9],[x+span,ground]],"#966b55");
+        for(let y=top+15;y<ground;y+=12) block(g,x,y,span,2,"#c19369");
+      }
+    }
     oval(g,177,59,night?16:10,night?16:10,night?"#b8bfad":"#b9a875");
     if(night) oval(g,183,54,14,14,"#30384b");
     for(const [x,y,s] of [[23,49,1.1],[105,34,.8],[215,62,1.4]]) cloud(g,x,y,s,"#b7b6a137");
@@ -191,13 +198,16 @@
   const fur = {
     fox:["#864736","#d7884d","#f2c996"],
     rabbit:["#62666d","#b2b7b1","#ede4cb"],
-    raccoon:["#394d62","#869ba7","#d2d9cd"]
+    raccoon:["#394d62","#869ba7","#d2d9cd"],
+    wolf:["#435767","#8fabb7","#d6e4db"],
+    bear:["#594535","#947454","#d3b387"]
   };
   const scarves = {green:"#8fac5b",red:"#b7583e",blue:"#4c91a4"};
 
   function animal(x,y,profile,bob,armored) {
-    const kind=Object.hasOwn(fur,profile?.species)?profile.species:"fox";
-    const [shade,coat,cream]=fur[kind];
+    const species=Object.hasOwn(fur,profile?.species)?profile.species:"fox";
+    const kind=species==="wolf"?"fox":species==="bear"?"bear":species;
+    const [shade,coat,cream]=fur[species];
     const outline="#19232d";
     const scarf=scarves[profile?.outfit]||scarves.green;
     const h=y-bob;
@@ -256,6 +266,23 @@
 
   function creature(index,x,y,wings) {
     const flap=wings?3:0;
+    if(index===3) {
+      polygon(ctx,[[x-25,y-5],[x-21,y-19],[x-8,y-25],[x+12,y-22],[x+24,y-12],[x+30,y-15],[x+25,y-4],[x+13,y-5],[x+10,y],[x+4,y],[x+4,y-7],[x-12,y-8],[x-15,y],[x-22,y]],"#192b35");
+      polygon(ctx,[[x-23,y-7],[x-19,y-18],[x-7,y-23],[x+11,y-20],[x+20,y-11],[x+13,y-7],[x+4,y-9],[x-12,y-10]],"#738b96");
+      polygon(ctx,[[x-23,y-17],[x-22,y-29],[x-13,y-24],[x-5,y-26],[x-9,y-14]],"#a6b7bc");
+      block(ctx,x-20,y-21,6,2,"#f0c680");
+      return;
+    }
+    if(index===4) {
+      for(const offset of [-17,13]) block(ctx,x+offset-3,y-8,8,8,"#25323a");
+      polygon(ctx,[[x-31,y-11],[x-20,y-30],[x+13,y-33],[x+29,y-20],[x+25,y-5],[x-17,y-3]],"#24313b");
+      polygon(ctx,[[x-20,y-27],[x+11,y-30],[x+25,y-19],[x+21,y-8],[x-14,y-6]],"#83929a");
+      for(let i=0;i<4;i++) block(ctx,x-14+i*8,y-27,2,18,"#c0c4b8");
+      polygon(ctx,[[x-30,y-22],[x-15,y-23],[x-19,y-8],[x-38,y-10]],"#5b534f");
+      polygon(ctx,[[x-32,y-10],[x-37,y-22],[x-35,y-5],[x-23,y-5]],"#e1cda2");
+      block(ctx,x-29,y-19,4,2,"#f2bd72");
+      return;
+    }
     if(index===0) {
       const h=y-17-flap;
       polygon(ctx,[[x,h],[x-22,h-6],[x-25,h-22],[x-10,h-19],[x,h-10],[x+13,h-22],[x+25,h-19],[x+18,h-5]],"#584b57");
@@ -377,7 +404,7 @@
   });
   sceneSize.observe(canvas);
   const teamY=[182,167,182,167];
-  const weaponsByAlly={raccoon:"",fox:"sword",rabbit:"staff",owl:"bow"};
+  const weaponsByAlly={raccoon:"",fox:"sword",rabbit:"staff",owl:"bow",wolf:"sword",bear:""};
   function drawMember(id,x,y,bob,attack) {
     const a=allies[id];
     ctx.save();
@@ -419,7 +446,7 @@
       block(ctx,172,ground-56,12,3,"#6a7d84");
     }
     for(const [i,id] of state.owned.entries()) {
-      const x=[94,126,153,174][i];
+      const x=79+i*19;
       const bob=Math.floor(clock/200+i)%2;
       const tended=id==="rabbit"&&state.garden;
       const scouting=id==="owl"&&state.tower;
@@ -434,8 +461,7 @@
     const g=strip.getContext("2d");
     g.imageSmoothingEnabled=false;
     g.drawImage(background("town"),0,122,280,76,0,0,300,36);
-    const count=state.owned.length+2;
-    const bed=300*(count-1.5)/count, tower=300*(count-.5)/count;
+    const bed=30, tower=90;
     block(g,bed-19,28,38,5,"#845d42");
     for(let i=0;i<(state.garden?8:4);i++) {
       const x=bed-16+i*5, y=24-(i%2);
@@ -470,7 +496,7 @@
           block(g,x+1,y-7,3,2,"#c9dc8d");
         }
         block(g,left+3,29,right-left-9,2,"#d9aa72");
-      } else {
+      } else if(id==="tower") {
         const top=improved?6:12;
         polygon(g,[[16,33],[22,top+6],[26,top+6],[23,33]],"#a6784f");
         polygon(g,[[48,33],[43,top+6],[47,top+6],[54,33]],"#a6784f");
@@ -481,6 +507,22 @@
         block(g,20,top,30,2,"#e0b77b");
         polygon(g,[[29,top-1],[42,top-5],[46,top-2],[32,top+2]],"#9bb5b9");
         if(improved) block(g,46,top-4,3,2,"#f3d08f");
+      } else if(id==="forge") {
+        block(g,12,14,27,20,"#765748");
+        polygon(g,[[10,14],[17,5],[33,5],[41,14]],"#b38a63");
+        block(g,19,17,13,14,"#332e31");
+        block(g,22,22,7,8,"#f0a763");
+        block(g,43,22,16,4,"#a5b6b5");block(g,47,26,7,7,"#667c81");
+      } else if(id==="board") {
+        block(g,17,8,36,23,"#9d7954");
+        block(g,20,11,30,16,"#504b3e");
+        block(g,19,29,3,6,"#74563f");block(g,48,29,3,6,"#74563f");
+        for(let i=0;i<3;i++) block(g,23+i*9,13,6,10,"#e7c58d");
+      } else {
+        polygon(g,[[8,17],[21,5],[47,5],[61,17]],"#728466");
+        block(g,13,17,43,16,"#9c7f5b");
+        block(g,31,22,9,11,"#3d4c44");
+        block(g,18,20,7,6,"#e4c58d");block(g,44,20,7,6,"#e4c58d");
       }
     }
   }
@@ -547,7 +589,7 @@
         const spot=enemySpot(event.enemy??0);
         const special=event.kind==="special";
         const offset=special?0:6;
-        if(id==="fox") {
+        if(id==="fox"||id==="wolf") {
           impact(teamX[event.from],spot.x,spot.y+offset,"sword",progress,special,false,false);
           if(special&&progress>.16) impact(teamX[event.from]+10,spot.x,spot.y-9,"sword",(progress-.16)/.84,true,false,false);
         }

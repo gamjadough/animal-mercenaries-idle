@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#222a28">
 <title>동물 용병단 키우기 · 반딧불 숲</title>
-<link rel="stylesheet" href="game.css?v=20261111-hp1">
-<script defer src="game.js?v=20261111-hp1"></script>
-<script defer src="world.js?v=20261111-hp1"></script>
+<link rel="stylesheet" href="game.css?v=20261111-expansion1">
+<script defer src="game.js?v=20261111-expansion1"></script>
+<script defer src="world.js?v=20261111-expansion1"></script>
 </head>
 <body>
 <main class="game">
@@ -20,13 +20,21 @@
     <span class="chapter" id="phase"></span>
     <button id="retreat" class="icon-button" data-act="retreat" aria-label="이번 전투 후 야영지 귀환" title="야영지 귀환"></button>
     <aside id="boss-warning" class="boss-warning" role="status" hidden>
-      <div><span class="boss-kicker">위험 · 달밤 올빼미</span><strong id="boss-skill"></strong><small id="boss-target"></small></div>
+      <div><span class="boss-kicker" id="boss-name">위험 · 보스</span><strong id="boss-skill"></strong><small id="boss-target"></small></div>
       <svg class="boss-portrait" viewBox="0 0 64 54" aria-hidden="true" shape-rendering="crispEdges">
         <path fill="#2b1d28" d="M4 4l18 9h20L60 4l-3 29-13 15H20L7 33z"/>
         <path fill="#876576" d="M9 12l14 7h18l14-7-3 20-10 12H22L12 32z"/>
         <path fill="#e3ae87" d="M12 18l17 8-6 9-10-4zm40 0-17 8 6 9 10-4z"/>
         <path fill="#8c2f31" d="M19 24h5v5h-5zm21 0h5v5h-5z"/>
         <path fill="#ffd3a1" d="M27 34h10l-5 8z"/>
+      </svg>
+      <svg class="boss-portrait boar-portrait" viewBox="0 0 64 54" aria-hidden="true" shape-rendering="crispEdges">
+        <path fill="#26313c" d="M5 17L19 4h31l12 18-8 26H13L2 32z"/>
+        <path fill="#8d9aa2" d="M10 18L22 8h25l10 16-7 19H17L7 31z"/>
+        <path fill="#d2c8ac" d="M19 9h3v28h-3zm12 0h3v29h-3zm12 0h3v29h-3z"/>
+        <path fill="#584844" d="M9 29h23v16H9z"/>
+        <path fill="#f5dab1" d="M7 32l5 17h8l-5-4-3-16zm23-1-4 13-5 4h8l6-17z"/>
+        <path fill="#ffbd72" d="M14 23h6v3h-6zm24 0h6v3h-6z"/>
       </svg>
     </aside>
     <div id="combat-hud">

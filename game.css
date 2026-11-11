@@ -103,6 +103,23 @@ canvas { width: 100%; height: 100%; display: block; object-fit: cover; object-po
 .enemy-name small { color: #d7b59a; font-size: .57rem; }
 .enemy-meters .defeated { border-color: #4f5b54; color: #8e9d91; }
 .enemy-meters .defeated small { color: #8e9d91; }
+.camp-companions { display: flex; gap: 4px; margin-bottom: 4px; }
+.camp-companions > * { flex: 1; min-width: 0; }
+.camp-companions .camp-item { min-height: 34px; grid-template-columns: auto auto; gap: 3px; }
+.camp-strip.expanded { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.camp-strip.expanded .camp-item { min-height: 43px; }
+.camp-strip.expanded .facility-art { height: 25px; }
+.camp-strip.expanded .camp-item b { font-size: .64rem; }
+.item-cell { min-height: 60px; }
+.hunt-picker { flex-wrap: wrap; }
+.hunt-picker > * { flex-basis: 36px; }
+.detail .button { min-height: 36px; }
+.detail > .detail-grid:empty { display: none; }
+.wolf { color: #b2d1dc; }
+.bear { color: #cfb08a; }
+.boar-portrait { display: none; }
+.boss-warning[data-kind="boar"] .boss-portrait { display: none; }
+.boss-warning[data-kind="boar"] .boar-portrait { display: block; }
 .icon-button { display: grid; place-items: center; width: 40px; min-height: 40px; padding: 0; border: 1px solid #6c8071; border-radius: 5px; background: #273630; color: #ead7af; font-size: 18px; }
 #retreat { position: absolute; right: 9px; top: 83px; }
 #retreat[aria-pressed=true] { background: #735a38; border-color: #d8af71; }
