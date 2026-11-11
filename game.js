@@ -611,7 +611,7 @@ function allyDetail(id) {
 function facilityDetail(id) {
   const f=facilities[id], done=Boolean(state[id]), allowed=Boolean(state.wins[2]);
   const cost=`${resource("garden",f.herbs,"약초")} ${resource("twig",f.twigs,"나뭇가지")}`;
-  const description=id==="garden" ? (done?"회복약 2회 · 회복량 31 · 부상 3초 / 기절 18초":"회복약 1→2회 · 회복량 18→31 · 부상 6→3초 (기절은 숙소에서 단축)") :
+  const description=id==="garden" ? (done?`회복약 2회 · 회복량 31 · 부상 3초 / 기절 ${state.quarters?12:18}초`:"회복약 1→2회 · 회복량 18→31 · 부상 6→3초 (기절은 숙소에서 단축)") :
     (done?"바람 고원의 새 사냥감을 발견했어요.":"강화하면 새 사냥터 바람 고원을 발견해요.");
   const upgrade=done?"":btn("upgrade-"+id,allowed?`강화 · ${cost}`:"첫 보스를 돌파하면 강화 가능","primary",!allowed||state.herbs<f.herbs||state.twigs<f.twigs);
   if(id==="garden") return panel(`${icon("garden")} 약초밭 · Lv.${state.garden+1}`,`<div class="facility-preview">${facilityArt(id)}<div class="info">${icon("heal")} ${description}</div></div>${upgrade}`);
