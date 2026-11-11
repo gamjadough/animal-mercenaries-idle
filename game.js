@@ -318,14 +318,6 @@ function battleView(now=Date.now()) {
   return {combat,camp:!combat&&visitsCamp(round),elapsed,frame,age,data:result.snapshots[frame],
     rest:Math.max(0,Math.ceil((length-elapsed)/1000)),progress:Math.min(100,elapsed/length*100)};
 }
-function skillStatus(view,i) {
-  const id=round?.lineup[i];
-  if(!id||!view.combat||!view.data.hp[i]||!view.data.foe||view.frame>=14) return {label:"—",enabled:false};
-  const wait=Math.max(0,view.data.ready[i]-view.elapsed);
-  if(wait>0) return {label:(Math.ceil(wait/100)/10).toFixed(1),enabled:false,fill:wait/cooldowns[id]*100};
-  if(id==="rabbit"&&!view.data.hp.some((hp,slot)=>hp>0&&hp<view.data.max[slot])) return {label:"대기",enabled:false};
-  return {label:"자동",enabled:true};
-}
 function move(from,to) {
   if(from===to||to<0||to>3||!slotOpen(to)) return false;
   const roster=typeof from==="string";
@@ -435,7 +427,6 @@ function render() {
   renderCombat();
 }
 let lastHud="";
-let skillLineup="";
 function renderCombat() {
   const view=battleView(), hunt=hunts[round?.index??state.hunt];
   const {data}=view;
@@ -458,18 +449,6 @@ function renderCombat() {
   if($("fight-alert").dataset.markup!==alert) {
     $("fight-alert").innerHTML=alert;
     $("fight-alert").dataset.markup=alert;
-  }
-  const lineupKey=layout.join(",");
-  if(skillLineup!==lineupKey) {
-    skillLineup=lineupKey;
-    $("skills").innerHTML=layout.map((id,i)=>id?`<div class="skill-key ${id}" data-skill="${i}" style="grid-column:${i+1}" title="${allies[id].skill}">${icon(roleIcons[id])}<span></span></div>`:"").join("");
-  }
-  for(const button of $("skills").children) {
-    const i=Number(button.dataset.skill), status=skillStatus(view,i);
-    button.classList.toggle("cooling",!status.enabled);
-    button.lastElementChild.textContent=status.label;
-    button.style.setProperty("--cooldown",(status.fill||0)+"%");
-    button.setAttribute("aria-label",`${allies[layout[i]].skill} · ${status.label}`);
   }
   $("depart").hidden=!state.held;
   const retreat=$("retreat");
