@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#222a28">
+<title>동물 용병단 키우기 · 반딧불 숲</title>
+<link rel="stylesheet" href="game.css">
+<script defer src="game.js"></script>
+<script defer src="world.js"></script>
+</head>
+<body>
+<main class="game">
+  <header><div class="brand"><span class="crest" aria-hidden="true"><svg class="icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 13l4-8 2 4 2-6 4 10z M8 9v4"/></svg></span><div><small>밤나무 숲 탐험 일지</small><h1>동물 용병단 키우기</h1></div></div><div id="stock" class="stock"></div></header>
+  <div id="notice" role="status"></div>
+  <section class="scene" aria-label="자동 사냥">
+    <canvas id="world" width="280" height="220"></canvas>
+    <div class="scene-shade"></div>
+    <div class="scene-label" id="scene-label"></div>
+    <span class="chapter" id="phase"></span>
+    <button id="retreat" class="icon-button" data-act="retreat" aria-label="이번 전투 후 야영지 귀환" title="야영지 귀환"></button>
+    <aside id="boss-warning" class="boss-warning" role="status" hidden>
+      <div><span class="boss-kicker">위험 · 달밤 올빼미</span><strong id="boss-skill"></strong><small id="boss-target"></small></div>
+      <svg class="boss-portrait" viewBox="0 0 64 54" aria-hidden="true" shape-rendering="crispEdges">
+        <path fill="#2b1d28" d="M4 4l18 9h20L60 4l-3 29-13 15H20L7 33z"/>
+        <path fill="#876576" d="M9 12l14 7h18l14-7-3 20-10 12H22L12 32z"/>
+        <path fill="#e3ae87" d="M12 18l17 8-6 9-10-4zm40 0-17 8 6 9 10-4z"/>
+        <path fill="#8c2f31" d="M19 24h5v5h-5zm21 0h5v5h-5z"/>
+        <path fill="#ffd3a1" d="M27 34h10l-5 8z"/>
+      </svg>
+    </aside>
+    <div id="combat-hud">
+      <div id="fight-alert"></div>
+      <div id="skills" class="meters" aria-label="동료 특수 기술"></div>
+      <div id="health-bars" class="meters"></div>
+      <button id="depart" class="button primary" data-act="depart" hidden>출격</button>
+    </div>
+  </section>
+  <section id="panel" aria-label="야영지와 팀 배치"></section>
+</main>
+</body>
+</html>
