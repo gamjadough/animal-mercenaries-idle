@@ -360,11 +360,11 @@
     visibleRight=width-crop;
     const left=Math.max(48,crop+28), right=Math.min(196,width-crop-34);
     targetX=right;
-    const front=Math.max(left+34,right-55);
+    const front=left+Math.max(28,(Math.max(left+34,right-55)-left)*.75);
     [front,front,left,left].forEach((x,i)=>{teamX[i]=x;});
   });
   sceneSize.observe(canvas);
-  const teamY=[182,148,182,148];
+  const teamY=[182,156,182,156];
   function drawMember(id,x,y,bob,attack) {
     // Leave room for the full body, including tails and recoil, inside the visible crop.
     const margin=id==="bear"?20:17;

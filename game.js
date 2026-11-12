@@ -87,6 +87,9 @@ let bookPage=0;
 let recruitChoice="wolf";
 let inventoryPage=0;
 let forgePage=0;
+let forgeType="weapon",forgeSort="tier",forgeFree=false,forgeSelected=null;
+const salvageGroups=new Set();
+let salvagePreview=[];
 let gearOwner="raccoon";
 let equipType="weapon";
 let helpStep=state.tutorial<3?state.tutorial:null;
@@ -541,13 +544,32 @@ function gearGroups(type) {
   for(const item of state.items) {
     if(type&&item.type!==type) continue;
     const key=`${item.type}:${item.tier}:${item.plus}`;
-    if(!groups.has(key)) groups.set(key,{item,count:0,used:0});
+    if(!groups.has(key)) groups.set(key,{item,count:0,used:0,locked:0,key});
     const group=groups.get(key);
     group.count++;
+    if(item.locked) group.locked++;
     if(wearer(item.uid)) group.used++;
     else group.item=item;
   }
   return [...groups.values()];
+}
+const gearKey=item=>`${item.type}:${item.tier}:${item.plus}`;
+function forgeList() {
+  return gearGroups(forgeType).filter(group=>!forgeFree||group.count>group.used)
+    .sort((a,b)=>forgeSort==="tier"?b.item.tier-a.item.tier||b.item.plus-a.item.plus:b.item.plus-a.item.plus||b.item.tier-a.item.tier);
+}
+function forgeItem() {
+  const list=forgeList();
+  const selected=state.items.find(item=>item.uid===forgeSelected);
+  if(selected&&(!forgeFree||!wearer(selected.uid))&&list.some(group=>group.key===gearKey(selected))) return selected;
+  forgeSelected=list[0]?.item.uid??null;
+  return list[0]?.item;
+}
+function salvageCandidates() {
+  return state.items.filter(item=>salvageGroups.has(gearKey(item))&&!item.locked&&!wearer(item.uid));
+}
+function salvageYield(items) {
+  return items.reduce((sum,item)=>({twigs:sum.twigs+item.tier*2+item.plus,iron:sum.iron+Math.max(0,item.tier-1)}),{twigs:0,iron:0});
 }
 function gearText(item) {
   return item.type==="weapon"?"공격 +"+(item.tier*2+item.plus*2):
@@ -558,16 +580,22 @@ function gearDetail(uid) {
   if(!item) return panel("장비",'<p class="info">장비가 없어요.</p>');
   return panel(gearName(item)+" +"+item.plus,`<div class="info">${gearText(item)} · ${wearer(uid)||"미장착"}</div>
     <div class="hunt-picker">${state.owned.map(id=>btn("owner-"+id,allies[id].name,gearOwner===id?"primary":"")).join("")}</div>
-    <div class="detail-grid">${btn("equip-"+uid,allies[gearOwner].name+" 장착","primary")}${btn("unequip-"+uid,"장착 해제","",!wearer(uid))}</div>`);
+    <div class="detail-grid">${btn("equip-"+uid,allies[gearOwner].name+" 장착","primary")}${btn("unequip-"+uid,"장착 해제","",!wearer(uid))}</div>${btn("gearlock-"+uid,item.locked?"잠금 해제":"장비 잠금")}`);
 }
 function forgeMenu() {
   const tier=state.wins[5]>0?3:state.wins[2]>0?2:1;
-  const item=state.items[forgePage];
+  const list=forgeList(),item=forgeItem();
+  forgePage=Math.max(0,Math.min(forgePage,Math.ceil(list.length/4)-1));
+  const candidates=salvageCandidates(),preview=state.items.filter(item=>salvagePreview.includes(item.uid)&&!item.locked&&!wearer(item.uid));
+  const yields=salvageYield(preview);
   const cost=`약초 ${tier*6} · 가지 ${tier*8}${tier===3?" · 철광석 2":""}`;
   return panel("대장간",`<p class="muted">제작 · ${cost}</p>
     <div class="detail-grid">${btn("craft-weapon","무기 제작","primary")}${btn("craft-armor","방어구 제작","primary")}</div>
-    ${item?`<div class="info">${gearName(item)} +${item.plus} · ${gearText(item)}<br>강화 성공 ${[100,80,60,45,30][item.plus]??0}% · 약초 4 / 가지 ${4+item.plus*2}<br><small>실패 시 한 단계 하락 · 재료 소모</small></div>
-      ${btn("enhance-"+item.uid,"강화 시도","",item.plus>=5||state.herbs<4||state.twigs<4+item.plus*2)}${paging("forgepage",forgePage,state.items.length,1)}`:'<p class="info">사냥터에서 장비를 얻거나 제작하세요.</p>'}`);
+    <div class="forge-tools">${btn("forgetype-weapon","무기",forgeType==="weapon"?"primary":"")}${btn("forgetype-armor","방어구",forgeType==="armor"?"primary":"")}${btn("forgesort","정렬 · "+(forgeSort==="tier"?"등급순":"강화순"))}${btn("forgefree",forgeFree?"미장착만 ✓":"전체 장비")}</div>
+    <div class="forge-list">${list.slice(forgePage*4,forgePage*4+4).map(group=>`<div class="forge-row"><button class="forge-pick ${item&&gearKey(item)===group.key?"selected":""}" data-act="forgeselect-${group.item.uid}"><b>${gearName(group.item)} +${group.item.plus} <em>×${group.count}</em></b><small>장착 ${group.used} · 잠금 ${group.locked}</small></button><button class="salvage-check" data-act="salvagepick-${group.item.uid}" aria-pressed="${salvageGroups.has(group.key)}" aria-label="${gearName(group.item)} +${group.item.plus} 분해 선택">${salvageGroups.has(group.key)?"☑":"☐"}</button></div>`).join("")||'<p class="muted">조건에 맞는 장비가 없습니다.</p>'}</div>${paging("forgepage",forgePage,list.length,4)}
+    ${item?`<div class="info">${gearName(item)} +${item.plus} · ${gearText(item)} · ${wearer(item.uid)||"보관"}${item.locked?" · 잠금":""}<br>강화 ${[100,80,60,45,30][item.plus]??0}% · 약초 4 / 가지 ${4+item.plus*2}<small> · 실패 시 1단계 하락</small></div><div class="detail-grid">${btn("enhance-"+item.uid,"선택 장비 강화","",item.plus>=5||state.herbs<4||state.twigs<4+item.plus*2)}${btn("gearlock-"+item.uid,item.locked?"선택 1개 잠금 해제":"선택 1개 잠금")}</div>`:""}
+    <div class="salvage-tools">${btn("salvageall","현재 목록 모두 선택")}${btn("salvageclear","선택 해제")}${btn("salvagepreview",`선택 장비 분해 · ${candidates.length}개`,"",!candidates.length)}</div>
+    ${salvagePreview.length?`<div class="salvage-confirm" role="status"><b>${preview.length}개 분해 → 가지 ${yields.twigs} · 철광석 ${yields.iron}</b><small>장착·잠금 제외 · 분해한 장비는 복구되지 않습니다.</small><div class="detail-grid">${btn("salvagecancel","취소")}${btn("salvageconfirm","확인 후 분해","primary",!preview.length)}</div></div>`:'<p class="muted">분해 선택은 묶음 단위 · 장착·잠금 장비는 보존됩니다.</p>'}`);
 }
 function recruitMenu() {
   const c=recruitCosts[recruitChoice], a=allies[recruitChoice], joined=state.owned.includes(recruitChoice);
@@ -607,7 +635,24 @@ function handleExpansion(action,verb,arg) {
   if(action==="bookpage") bookPage=bookPage?0:1;
   if(action==="huntpage") inspectedHunt=inspectedHunt<4?4:0;
   if(verb==="inventorypage") inventoryPage+=arg==="next"?1:-1;
-  if(verb==="forgepage") forgePage=Math.max(0,Math.min(state.items.length-1,forgePage+(arg==="next"?1:-1)));
+  if(verb==="forgepage") forgePage+=arg==="next"?1:-1;
+  if(verb==="forgetype"&&["weapon","armor"].includes(arg)){forgeType=arg;forgePage=0;salvagePreview=[];}
+  if(action==="forgesort"){forgeSort=forgeSort==="tier"?"plus":"tier";forgePage=0;}
+  if(action==="forgefree"){forgeFree=!forgeFree;forgePage=0;}
+  if(verb==="forgeselect") forgeSelected=Number(arg);
+  if(verb==="gearlock") {const item=state.items.find(item=>item.uid===Number(arg));if(item)item.locked=!item.locked;salvagePreview=[];}
+  if(verb==="salvagepick") {const item=state.items.find(item=>item.uid===Number(arg));if(item){const key=gearKey(item);if(salvageGroups.has(key))salvageGroups.delete(key);else salvageGroups.add(key);}salvagePreview=[];}
+  if(action==="salvageall"){for(const group of forgeList())salvageGroups.add(group.key);salvagePreview=[];}
+  if(action==="salvageclear"){salvageGroups.clear();salvagePreview=[];}
+  if(action==="salvagepreview") salvagePreview=salvageCandidates().map(item=>item.uid);
+  if(action==="salvagecancel") salvagePreview=[];
+  if(action==="salvageconfirm") {
+    const removable=state.items.filter(item=>salvagePreview.includes(item.uid)&&!item.locked&&!wearer(item.uid));
+    const ids=new Set(removable.map(item=>item.uid)),refund=salvageYield(removable);
+    state.items=state.items.filter(item=>!ids.has(item.uid));state.twigs+=refund.twigs;state.materials.iron+=refund.iron;
+    message=`장비 ${ids.size}개 분해 · 가지 +${refund.twigs} / 철광석 +${refund.iron}`;
+    salvagePreview=[];salvageGroups.clear();
+  }
   if(verb==="loadoutpage") inventoryPage+=arg==="next"?1:-1;
   if(verb==="candidate"&&recruitCosts[arg]) recruitChoice=arg;
   if(verb==="owner"&&state.owned.includes(arg)) gearOwner=arg;
@@ -635,7 +680,7 @@ function handleExpansion(action,verb,arg) {
     if(state.herbs>=tier*6&&state.twigs>=tier*8&&(tier<3||state.materials.iron>=2)) {
       state.herbs-=tier*6;state.twigs-=tier*8;if(tier===3)state.materials.iron-=2;
       const item={uid:state.nextItem++,type:arg,tier,plus:0};
-      state.items.push(item);forgePage=state.items.length-1;message=gearName(item)+" 제작 완료";
+      state.items.push(item);forgeType=arg;forgeSelected=item.uid;forgePage=Math.floor(forgeList().findIndex(group=>group.key===gearKey(item))/4);message=gearName(item)+" 제작 완료";
     } else message="제작 재료가 부족해요.";
   }
   if(verb==="enhance") {
@@ -669,7 +714,7 @@ function fullFacilityScreen(kind,content) {
   content=content.replace(/<div class="detail-head">[\s\S]*?<\/div>/,"");
   const config=fullFacilities[kind];
   const markers=kind==="tower"?`<div class="campaign-map" aria-label="사냥터 지도">${hunts.map((hunt,i)=>`<button class="map-stop ${unlocked(i)?"":"locked"}" style="left:${mapStops[i][0]}%;top:${mapStops[i][1]}%" data-act="inspect-${i}" aria-label="${hunt.name}" aria-pressed="${i===inspectedHunt}"><b>${icon(unlocked(i)?"target":"lock")}</b><span>${["숲길","덤불","달밤","이슬","고원","협곡","철갑"][i]}</span></button>`).join("")}</div>`:"";
-  const hero=kind==="board"?`<div class="recruit-portrait"><canvas class="unit-portrait" data-unit="${recruitChoice}" width="600" height="400" aria-label="${allies[recruitChoice].animal} 전신 그림"></canvas></div>`:kind==="forge"&&state.items[forgePage]?`<div class="gear-feature">${icon(state.items[forgePage].type==="weapon"?"sword":"shield")}<strong>+${state.items[forgePage].plus}</strong><span>${gearName(state.items[forgePage])}</span></div>`:"";
+  const hero=kind==="board"?`<div class="recruit-portrait"><canvas class="unit-portrait" data-unit="${recruitChoice}" width="600" height="400" aria-label="${allies[recruitChoice].animal} 전신 그림"></canvas></div>`:kind==="forge"&&forgeItem()?`<div class="gear-feature">${icon(forgeItem().type==="weapon"?"sword":"shield")}<strong>+${forgeItem().plus}</strong><span>${gearName(forgeItem())}</span></div>`:"";
   return `<img class="facility-backdrop" src="${facilityImages[config.image]}" alt=""><div class="facility-vignette"></div>
     <div class="facility-top"><div><small>${config.eyebrow}</small><h2 id="facility-title">${config.title}</h2></div>${btn("back","✕ 닫기")}</div>
     ${markers}${hero}<div class="facility-dock"><div class="facility-stock">${resource("garden",state.herbs,"약초")} ${resource("twig",state.twigs,"나뭇가지")}${kind==="forge"?resource("shield",state.materials.iron,"철광석"):""}</div>${content}<p class="facility-result" role="status">${message}</p></div>`;
