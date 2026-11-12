@@ -365,16 +365,22 @@
   });
   sceneSize.observe(canvas);
   const teamY=[182,156,182,156];
-  function drawMember(id,x,y,bob,attack) {
+  function drawMember(id,x,y,bob,attack,walking=false,attackAge=0) {
     // Leave room for the full body, including tails and recoil, inside the visible crop.
     const margin=id==="bear"?20:17;
     x=Math.max(visibleLeft+margin,Math.min(visibleRight-margin,x));
     const sheet=animalSheets[id];
-    if(sheet?.complete&&sheet.naturalWidth) {const frame=motion.matches?0:attack?3+Math.floor(performance.now()/130)%3:1+Math.floor(performance.now()/220)%2;ctx.save();ctx.imageSmoothingEnabled=false;const size=id==="bear"?38:32;ctx.drawImage(sheet,frame*100,0,100,80,Math.round(x-size/2),Math.round(y-size*.78),size,size*.8);ctx.restore();return;}
+    if(sheet?.complete&&sheet.naturalWidth) {
+      const frame=motion.matches?0:attack?3+Math.min(2,Math.floor(Math.max(0,attackAge)/160)):walking?1+Math.floor(performance.now()/220)%2:0;
+      ctx.save();ctx.imageSmoothingEnabled=false;
+      const size=id==="bear"?38:32;
+      ctx.drawImage(sheet,frame*100,0,100,80,Math.round(x-size/2),Math.round(y-size*.78),size,size*.8);
+      ctx.restore();return;
+    }
     const outline="#13212a", a=allies[id];
     const palette=fur[id]||["#4f4c58","#9c8e9d","#ded8bd"];
     const [shade,coat,light]=palette;
-    const step=motion.matches?0:bob*2;
+    const step=motion.matches||!walking?0:bob*2;
     ctx.save();
     ctx.translate(Math.round(x),Math.round(y));
     ctx.scale(.67,.67);
@@ -468,7 +474,10 @@
       const bob=Math.floor(clock/200+i)%2;
       const tended=id==="rabbit"&&state.garden;
       const scouting=id==="owl"&&state.tower;
-      drawMember(id,tended?125+Math.sin(clock/470)*9:x,scouting?ground-43:ground,bob,false);
+      const phase=(clock+i*1300)%8000;
+      const walking=!motion.matches&&!tended&&!scouting&&(phase<2400||phase>=4000&&phase<6400);
+      const offset=motion.matches?0:phase<2400?-6+phase/200:phase<4000?6:phase<6400?6-(phase-4000)/200:-6;
+      drawMember(id,tended?125:scouting?x:x+offset,scouting?ground-43:ground,bob,false,walking);
       if(tended&&bob) particles(x,ground-7,.3,"#cce997",4);
     }
   }
@@ -579,8 +588,7 @@
       const id=round.lineup[i];
       if(!id||view.data.hp[i]<=0&&!hits.has(i)) continue;
       const recoil=hits.has(i)?Math.sin(progress*Math.PI)*7:0;
-      const advance=strikes.has(i)&&id==="fox"?Math.sin(progress*Math.PI)*12:0;
-      drawMember(id,teamX[i]+advance-recoil,teamY[i],Math.floor(clock/200+i)%2,strikes.has(i));
+      drawMember(id,teamX[i]-recoil,teamY[i],0,strikes.has(i),false,view.age);
     }
     const group=enemyGroup(round.index);
     const enemySpot=i=>({x:target+[-7,12,17][i],y:ground+[0,-25,-5][i]});
